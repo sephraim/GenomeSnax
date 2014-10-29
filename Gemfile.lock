@@ -1,0 +1,12 @@
+GEM
+  remote: http://rubygems.org/
+  specs:
+    mysql2 (0.3.16)
+    trollop (2.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  mysql2 (~> 0.3.16)
+  trollop (~> 2.0.0)
