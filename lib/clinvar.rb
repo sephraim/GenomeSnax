@@ -1,11 +1,13 @@
-# Methods for querying and parsing data from HGMD
+# Methods for querying and parsing data from ClinVar
 # via Genome Trax
 #
 # @author Sean Ephraim
-class Hgmd
-  @@ngs_ontology_no = ACCEPTED_SOURCES['hgmd']
+class Clinvar
+#  @@ngs_ontology_no = ACCEPTED_SOURCES['1kg']
+@@ngs_ontology_no = 37
 
   # Query Gene
+  # TODO Make this more DRY. It's the same as HGMD
   def self.query_gene(gene)
     results = CLIENT.query("
       SELECT *
@@ -23,6 +25,7 @@ class Hgmd
   end
 
   # Query position
+  # TODO Make this more DRY. It's the same for ANY source
   def self.query_position(position)
     chr,pos = position.split(':')
     results = CLIENT.query("
@@ -40,13 +43,13 @@ class Hgmd
     end
   end
 
-  # Query position
+  # TODO Query position
   def self.query_variant(variant)
     chr,pos,alleles = variant.split(':')
     ref,alt = alleles.split('>')
 
     # First search by position...
-    results = Query.position(variant, 'hgmd')
+    results = self.query_position(variant)
 
     if !results.nil?
       results.each do |row|

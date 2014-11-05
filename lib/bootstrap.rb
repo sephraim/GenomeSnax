@@ -9,5 +9,9 @@ require 'mysql2'
 require 'trollop'
 # Libraries
 require_relative 'error'
+require_relative 'print'
 require_relative 'genome'
+require_relative 'query'
+require_relative 'hgmd'
+require_relative 'clinvar'
 CONFIG.freeze
