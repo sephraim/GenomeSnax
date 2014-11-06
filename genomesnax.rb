@@ -1,7 +1,13 @@
 #!/usr/bin/ruby
 
 ##
-# Remotely access and query the Genome Trax database
+# *** Genome Snax ***
+# An easier way to query Genome Trax by
+#   - genes
+#   - positions
+#   - variants
+#
+# @author Sean Ephraim
 ##
 
 require_relative File.join('lib', 'bootstrap.rb')
@@ -97,6 +103,7 @@ begin
 
   # Query Genome Trax
   terms.each_with_index do |term, index|
+    next if !term.match(/^#/).nil? # Skip lines that start with #
 
     if TYPE == 'gene'
       # Query by gene
@@ -105,10 +112,12 @@ begin
     elsif TYPE == 'position'
       # Query by position
       puts "Position #{index+1} of #{num_terms}" if PROGRESS
+      term.prepend("chr") if term.match(/^chr/).nil? # Add 'chr' to front if missing
       results = Query.position(term, SOURCE)
     elsif TYPE == 'variant'
       # Query by variant
       puts "Variant #{index+1} of #{num_terms}" if PROGRESS
+      term.prepend("chr") if term.match(/^chr/).nil? # Add 'chr' to front if missing
       results = Query.variant(term, SOURCE)
     end
 

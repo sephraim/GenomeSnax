@@ -5,45 +5,9 @@
 class Hgmd
   @@ngs_ontology_no = ACCEPTED_SOURCES['hgmd']
 
-  # Query Gene
-  def self.query_gene(gene)
-    results = CLIENT.query("
-      SELECT *
-      FROM ngs_feature
-      WHERE description
-      LIKE '%;hgnc|#{gene};%'
-      AND genome='#{BUILD}'
-      AND ngs_ontology_no=#{@@ngs_ontology_no}
-    ")
-    if results.to_a.empty?
-      return nil
-    else
-      return results.to_a
-    end
-  end
-
-  # Query position
-  def self.query_position(position)
-    chr,pos = position.split(':')
-    results = CLIENT.query("
-      SELECT *
-      FROM ngs_feature
-      WHERE chromosome='#{chr}'
-      AND feature_start=#{pos}
-      AND genome='#{BUILD}'
-      AND ngs_ontology_no=#{@@ngs_ontology_no}
-    ")
-    if results.to_a.empty?
-      return nil
-    else
-      return results.to_a
-    end
-  end
-
   # Query position
   def self.query_variant(variant)
-    chr,pos,alleles = variant.split(':')
-    ref,alt = alleles.split('>')
+    chr,pos,ref,alt = Genome.split_variant(variant)
 
     # First search by position...
     results = Query.position(variant, 'hgmd')
