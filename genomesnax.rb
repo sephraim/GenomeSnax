@@ -1,10 +1,9 @@
-#!/usr/bin/ruby
-
 ##
 # *** Genome Snax ***
 # An easier way to query Genome Trax by
 #   - genes
-#   - positions
+#   - chromosomal regions
+#   - chromosomal positions
 #   - variants
 #
 # @author Sean Ephraim
@@ -16,7 +15,7 @@ opts = Trollop::options do
   opt :in, "Path to input file", :type => :string, :required => true, :short => "-i"
   opt :out, "Path to annotation output file (default: [INFILE].[SOURCE].#{CONFIG[:ext_missing]})", :type => :string, :short => "-o"
   opt :missing, "Path to missing log file (default: [OUTFILE].[SOURCE].#{CONFIG[:ext_out]})", :type => :string, :short => "-m"
-  opt :type, "Type of input (e.g. gene, position, variant)", :type => :string, :required => true, :short => "-t"
+  opt :type, "Type of input (e.g. gene, region, position, variant)", :type => :string, :required => true, :short => "-t"
   opt :format, "Output format (e.g. tab, raw)", :default => CONFIG[:format], :short => "-f"
   opt :build, "Genomic build (e.g. hg19)", :default => CONFIG[:build], :short => "-b"
   opt :progress, "Show progress", :default => false, :short => "-p"
