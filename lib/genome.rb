@@ -27,4 +27,14 @@ class Genome
     end
     return [chr, pos, ref, alt]
   end
+
+  # Splits the chromosomal region string into its separate parts.
+  # The parts are chromosome, start position, and end position.
+  #
+  # @param region [String] Chromosomal region as one string
+  # @return [Array] Region parts [chr, start_pos, end_pos]
+  def self.split_region(variant)
+    chr,start_pos,end_pos = variant.split(/[^a-zA-Z\d]/)
+    return [chr, start_pos, end_pos]
+  end
 end

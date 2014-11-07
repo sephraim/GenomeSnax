@@ -1,14 +1,17 @@
+# Gets the full regions of a gene based on the given transcripts
 # 
-# 
-# Input columns
+# Input columns:
 #   chr, start, stop, gene_symbol, [transcript] <-- optional
+#
+# Example usage:
+#   ruby get_gene_regions.rb genes_list.txt gene_transcripts.txt > gene_regions.unsorted.txt
 
-F_GENES = File.open('genes.txt', 'r')
-F_POSITIONS = File.open('gene_positions.unsorted.txt', 'r')
+F_GENES = File.open(ARGV[0], 'r')
+F_TRANSCRIPTS = File.open(ARGV[1], 'r')
 
 F_GENES.each_line do |gene|
   gene.chomp!
-  results = F_POSITIONS.grep(/\b#{gene}\b/)
+  results = F_TRANSCRIPTS.grep(/\b#{gene}\b/)
 
   chr = nil
   min_start = nil
@@ -20,9 +23,9 @@ F_GENES.each_line do |gene|
   end
 
   puts [chr,min_start,max_stop,gene].join("\t")
-  F_POSITIONS.rewind # reset file pointer
+  F_TRANSCRIPTS.rewind # reset file pointer
 end
 
 # Close files
 F_GENES.close
-F_POSITIONS.close
+F_TRANSCRIPTS.close

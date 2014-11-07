@@ -4,9 +4,12 @@
 #   - Column 1: chromosome (e.g. chr1, chr10, chrX)
 #   - Column 2: start position (e.g. 4325484)
 #   - All other columns can be ordered in any way
+#
+# Example usage:
+#   ruby sort_positions.rb input.txt output.txt
 
-F_IN = 'output.txt' # <-- EDIT THIS
-F_OUT = 'sorted_positions.txt' # <-- EDIT THIS
+F_IN = ARGV[0]
+F_OUT = ARGV[1]
 
 F_TMP = ".#{F_OUT}.tmp"
 

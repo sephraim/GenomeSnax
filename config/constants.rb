@@ -10,6 +10,7 @@ GENES_DIR = File.join(DATA_DIR, 'genes')
 # Accepted input types
 ACCEPTED_TYPES = [
   'gene',
+  'region',
   'position',
   'variant',
 ]

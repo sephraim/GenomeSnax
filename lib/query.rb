@@ -19,7 +19,7 @@ class Query
     chr,pos_start,pos_end = line.split("\t")
 
     results = nil
-    # Search by chromosomal position and HGNC gene name
+    # Search by chromosomal region and HGNC gene name
     if ['hgmd', 'clinvar', 'dbnsfp', 'evs'].include?(source)
       results = CLIENT.query("
         SELECT *
@@ -30,7 +30,7 @@ class Query
         OR description LIKE '%;hgnc|#{gene};%')
       ")
     elsif ['dbsnp'].include?(source)
-      # Search by chromosomal position only
+      # Search by chromosomal region only
       results = CLIENT.query("
         SELECT *
         FROM ngs_feature
@@ -43,6 +43,37 @@ class Query
     else
       Error.fatal("Gene query for #{source} has not been specified")
     end
+    results = results.to_a
+    if results.empty?
+      return nil
+    else
+      return results
+    end
+  end
+
+  ##
+  # Query chromosomal region
+  #
+  # @param region [String] Chromosomal region (e.g. chr13:20761603-20767114)
+  # @param source [String] Data source (e.g. hgmd, clinvar)
+  # @retrun [Array/Nil] Query result or nil
+  ##
+  def self.region(region, source)
+    ngs_ontology_no = ACCEPTED_SOURCES[source]
+
+    chr,pos_start,pos_end = Genome.split_region(region)
+
+    # Search region
+    results = nil
+    results = CLIENT.query("
+      SELECT *
+      FROM ngs_feature
+      WHERE genome = '#{BUILD}'
+      AND ngs_ontology_no = #{ngs_ontology_no}
+      AND chromosome = '#{chr}'
+      AND feature_start >= #{pos_start} 
+      AND feature_end <= #{pos_end} 
+    ")
     results = results.to_a
     if results.empty?
       return nil

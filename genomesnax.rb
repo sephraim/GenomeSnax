@@ -18,9 +18,9 @@ opts = Trollop::options do
   opt :missing, "Path to missing log file (default: [OUTFILE].[SOURCE].#{CONFIG[:ext_out]})", :type => :string, :short => "-m"
   opt :type, "Type of input (e.g. gene, position, variant)", :type => :string, :required => true, :short => "-t"
   opt :format, "Output format (e.g. tab, raw)", :default => CONFIG[:format], :short => "-f"
-  opt :build, "Genomic build (e.g. hg18, hg19, hg20)", :default => CONFIG[:build], :short => "-b"
+  opt :build, "Genomic build (e.g. hg19)", :default => CONFIG[:build], :short => "-b"
   opt :progress, "Show progress", :default => false, :short => "-p"
-  opt :source, "Data source (hgmd, dbsnp, clinvar)", :type => :string, :required => true, :short => "-N"
+  opt :source, "Data source (e.g. hgmd, clinvar, dbsnp)", :type => :string, :required => true, :short => "-s"
   opt :noheader, "Don't include header in output file", :default => false, :short => "-n"
   opt :username, "MySQL username", :default => CONFIG[:username], :short => "-U"
   opt :password, "MySQL password", :default => CONFIG[:password], :short => "-P"
@@ -53,10 +53,6 @@ if !ACCEPTED_FORMATS.include?(FORMAT)
 else
   DELIM = ACCEPTED_FORMATS[FORMAT]
 end
-
-# Gene regions reference file
-GENE_REFERENCE = File.join(GENES_DIR, "gene_regions_#{BUILD}.txt")
-Error.fatal("Gene region reference file does not exist at #{GENE_REFERENCE}") if !File.exist?(GENE_REFERENCE)
 
 # Database credentials
 HOST = opts[:host]
@@ -106,9 +102,18 @@ begin
     next if !term.match(/^#/).nil? # Skip lines that start with #
 
     if TYPE == 'gene'
+      # Set gene regions reference file
+      GENE_REFERENCE = File.join(GENES_DIR, "gene_regions_#{BUILD}.txt")
+      Error.fatal("Gene region reference file does not exist at #{GENE_REFERENCE}") if !File.exist?(GENE_REFERENCE)
+
       # Query by gene
       puts "Gene #{index+1} of #{num_terms}" if PROGRESS
       results = Query.gene(term, SOURCE)
+    elsif TYPE == 'region'
+      # Query by chromosome region
+      puts "Region #{index+1} of #{num_terms}" if PROGRESS
+      term.prepend("chr") if term.match(/^chr/).nil? # Add 'chr' to front if missing
+      results = Query.region(term, SOURCE)
     elsif TYPE == 'position'
       # Query by position
       puts "Position #{index+1} of #{num_terms}" if PROGRESS
