@@ -17,11 +17,13 @@ ACCEPTED_TYPES = [
 
 # Accepted data sources
 ACCEPTED_SOURCES = {
-  'hgmd' => 6,
   'clinvar' => 32,
-  'dbsnp' => 33,
-  'dbnsfp' => 26,
-  'evs' => 25,
+  'dbnsfp'  => 26,
+  'dbsnp'   => 33,
+  'evs'     => 25,
+  'gwas'    => 17,
+  'hgmd'    => 6,
+#  NOTE 1000 Genomes is not supported at this time (no records in Genome Trax)
 #  '1kg' => {
 #    'yri' => 37,
 #    'ceu' => 38,
@@ -37,20 +39,18 @@ ACCEPTED_FORMATS = {
 
 # Token for the reference allele in the description column
 REF_ALLELE_TOKEN = {
-  'hgmd' => 'ref',
   'clinvar' => 'ref',
-#  'dbsnp' => 'ref_ncbi', # 2014.3
-  'dbsnp' => 'DbSNP_refNCBI', # 2014.1
-  'dbnsfp' => 'ref',
-  'evs' => 'evs_RefBaseNCBI37',
+  'dbnsfp'  => 'ref',
+  'dbsnp'   => 'DbSNP_refNCBI',
+  'evs'     => 'evs_RefBaseNCBI37',
+  'hgmd'    => 'ref',
 }
 
 # Token for the alternative allele in the description column
 ALT_ALLELE_TOKEN = {
-  'hgmd' => 'alt',
   'clinvar' => 'alt',
-#  'dbsnp' => 'variant', # 2014.3
-  'dbsnp' => 'variation', # 2014.1
-  'dbnsfp' => 'altref',
-  'evs' => 'alt',
+  'dbnsfp'  => 'altref',
+  'dbsnp'   => 'variation', # NOTE: Additional parsing needed
+  'evs'     => 'alt',
+  'hgmd'    => 'alt',
 }

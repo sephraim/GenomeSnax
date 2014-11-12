@@ -95,7 +95,7 @@ class Genome
   # @param source [String] Data source (e.g. hgmd, clinvar)
   # @return [String] Reference allele(s)
   def self.get_ref(description, source)
-    ref = description.match(/\b#{REF_ALLELE_TOKEN[source]}\|([a-zA-Z\/-]*)\b/)[1]
+    ref = description.match(/\b#{REF_ALLELE_TOKEN[source]}\|([a-zA-Z\-\/]*)/)[1]
     if ref == "N/A"
       return "."
     else
@@ -109,7 +109,7 @@ class Genome
   # @param source [String] Data source (e.g. hgmd, clinvar)
   # @return [String] Reference allele(s)
   def self.get_alt(description, source)
-    alt = description.match(/\b#{ALT_ALLELE_TOKEN[source]}\|([a-zA-Z\/,\-]*)/)[1]
+    alt = description.match(/\b#{ALT_ALLELE_TOKEN[source]}\|([a-zA-Z\/\-,]*)/)[1]
 
     # Get alternate allele from dbSNP description
     if source == 'dbsnp'
@@ -127,17 +127,10 @@ class Genome
       else
         alt = allele1
       end
-    elsif alt.include?(',')
-      # If alt contains a comma, there are multiple alts -- find which one is right
-      alt.split(',').each do |a|
-        if !description.match(/\bhgvs\|NC_.+\d+[actgACTG\-]>#{a}/).nil?
-          # Match HGVS substitution
-          alt = a
-        elsif !description.match(/\bhgvs\|NC_.+\d+[actgACTG\-0-9]ins([actgACTG\-]+)/).nil?
-          # Match HGVS insertion
-          alt = a
-        end
-      end
+#    elsif alt.include?(',')
+#      # If alt contains a comma, there are multiple alts -- find which one is right
+#      alt.split(',').each do |a|
+#      end
     end
 
     if alt == 'N/A' || alt.nil?
