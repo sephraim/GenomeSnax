@@ -35,7 +35,7 @@ end
 
 # Genome build version (e.g. hg18, hg19, etc.)
 BUILD = opts[:build]
-if opts[:build].match(/^hg[1-9]{1,2}$/).nil?
+if opts[:build].match(/^hg[0-9]{1,2}$/).nil?
   Error.fatal("#{BUILD} is not a valid genome build")
 end
 

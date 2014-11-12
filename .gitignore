@@ -1,4 +1,6 @@
 *.in
 *.out
 *.missing
+*.raw
+*.sh
 *.swp

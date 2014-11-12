@@ -8,7 +8,7 @@ class Query
   #
   # @param gene [String] Gene symbol (e.g. GJB2, USH2A)
   # @param source [String] Data source (e.g. hgmd, clinvar)
-  # @retrun [Array/Nil] Query result or nil
+  # @return [Array/Nil] Query result or nil
   ##
   def self.gene(gene, source)
     ngs_ontology_no = ACCEPTED_SOURCES[source]
@@ -21,6 +21,10 @@ class Query
     results = nil
     # Search by chromosomal region and HGNC gene name
     if ['hgmd', 'clinvar', 'dbnsfp', 'evs'].include?(source)
+# TODO Change the query to:
+#   AND feature_end >= #{pos_start} 
+#   AND feature_start <= #{pos_end}
+puts "NOTICE: You are querying the gene region incorrectly"
       results = CLIENT.query("
         SELECT *
         FROM ngs_feature
@@ -56,13 +60,16 @@ class Query
   #
   # @param region [String] Chromosomal region (e.g. chr13:20761603-20767114)
   # @param source [String] Data source (e.g. hgmd, clinvar)
-  # @retrun [Array/Nil] Query result or nil
+  # @return [Array/Nil] Query result or nil
   ##
   def self.region(region, source)
     ngs_ontology_no = ACCEPTED_SOURCES[source]
 
     chr,pos_start,pos_end = Genome.split_region(region)
-
+# TODO Change the query to:
+#   AND feature_end >= #{pos_start} 
+#   AND feature_start <= #{pos_end}
+puts "NOTICE: You are querying the region incorrectly"
     # Search region
     results = nil
     results = CLIENT.query("
@@ -72,7 +79,7 @@ class Query
       AND ngs_ontology_no = #{ngs_ontology_no}
       AND chromosome = '#{chr}'
       AND feature_start >= #{pos_start} 
-      AND feature_end <= #{pos_end} 
+      AND feature_start <= #{pos_end} 
     ")
     results = results.to_a
     if results.empty?
@@ -87,7 +94,7 @@ class Query
   #
   # @param position [String] Chromosomal position (e.g. chr1:5643223)
   # @param source [String] Data source (e.g. hgmd, clinvar)
-  # @retrun [Array/Nil] Query result or nil
+  # @return [Array/Nil] Query result or nil
   ##
   def self.position(position, source)
     ngs_ontology_no = ACCEPTED_SOURCES[source]
@@ -113,7 +120,7 @@ class Query
   #
   # @param variant [String] Chromosomal variant (e.g. chr1:5643223:G>A)
   # @param source [String] Data source (e.g. hgmd, clinvar)
-  # @retrun [Array/Nil] Query result or nil
+  # @return [Array/Nil] Query result or nil
   ##
   def self.variant(variant, source)
     if source == 'hgmd'
