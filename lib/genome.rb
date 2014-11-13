@@ -1,10 +1,14 @@
 class Genome
   # Swaps the nucleotide sequence to the opposite strand
   #
+  # For example:
+  #   Original: TCCAGACAC
+  #   Swapped:  GTGTCTGGA
+  #
   # @param seq [String] Nucleotide sequence
   # @return [String] Nucleotide sequence on opposite strand
   def self.swap_strand(seq)
-    seq = seq.upcase.split("")
+    seq = seq.reverse.upcase.split("")
     seq.each_with_index do |base, i|
       seq[i] = 'A' if base == 'T' 
       seq[i] = 'T' if base == 'A' 
@@ -93,8 +97,9 @@ class Genome
   #
   # @param description [String] Description column value
   # @param source [String] Data source (e.g. hgmd, clinvar)
+  # @param strand [String] Chromosome strand (+ or -)
   # @return [String] Reference allele(s)
-  def self.get_ref(description, source)
+  def self.get_ref(description, source, strand = '+')
     ref = description.match(/\b#{REF_ALLELE_TOKEN[source]}\|([a-zA-Z\-\/]*)/)[1]
     if ref == "N/A"
       return "."
@@ -107,8 +112,9 @@ class Genome
   #
   # @param description [String] Description column value
   # @param source [String] Data source (e.g. hgmd, clinvar)
+  # @param strand [String] Chromosome strand (+ or -)
   # @return [String] Reference allele(s)
-  def self.get_alt(description, source)
+  def self.get_alt(description, source, strand = '+')
     alt = description.match(/\b#{ALT_ALLELE_TOKEN[source]}\|([a-zA-Z\/\-,]*)/)[1]
 
     # Get alternate allele from dbSNP description
@@ -118,19 +124,12 @@ class Genome
       # Swap strand if none of the alleles are the NCBI ref allele
       if !alt.split('/').include?(ref_ncbi)
         alt = swap_strand(alt)
-      end
+      end 
 
       # Set the correct alt allele
-      allele1,allele2 = alt.split('/')
-      if ref_ncbi == allele1
-        alt = allele2
-      else
-        alt = allele1
-      end
-#    elsif alt.include?(',')
-#      # If alt contains a comma, there are multiple alts -- find which one is right
-#      alt.split(',').each do |a|
-#      end
+      alleles = alt.split('/')
+      alleles.delete(ref_ncbi)
+      alt = alleles.join(',')
     end
 
     if alt == 'N/A' || alt.nil?

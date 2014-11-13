@@ -43,6 +43,7 @@ REF_ALLELE_TOKEN = {
   'dbnsfp'  => 'ref',
   'dbsnp'   => 'DbSNP_refNCBI',
   'evs'     => 'evs_RefBaseNCBI37',
+  'gwas'    => 'ref',
   'hgmd'    => 'ref',
 }
 
@@ -52,5 +53,6 @@ ALT_ALLELE_TOKEN = {
   'dbnsfp'  => 'altref',
   'dbsnp'   => 'variation', # NOTE: Additional parsing needed
   'evs'     => 'alt',
+  'gwas'    => 'alt',
   'hgmd'    => 'alt',
 }

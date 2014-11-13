@@ -38,36 +38,51 @@ class Print
   # Print results
   def self.results(results)
     results.each do |row|
-      row.each_pair do |key, value|
-        if FORMAT != 'raw'
-          # Print formatted results
-          if key == 'feature_end'
-            # Print 'feature_end' value, then...
-            F_RESULTS.print "#{value}#{DELIM}"
-            # ...print "ref" and "alt" allele
-            alleles = Genome.get_ref_alt_from_hgvs(row['description'])
-            if !alleles.nil?
-              ref,alt = alleles[0..1]
-            else
-              ref = Genome.get_ref(row['description'], SOURCE)
-              alt = Genome.get_alt(row['description'], SOURCE)
-            end
-            F_RESULTS.print "#{ref}#{DELIM}"
-            F_RESULTS.print "#{alt}#{DELIM}"
-          elsif key == 'description'
-            # Split the 'description' column into separate columns
-            F_RESULTS.print value.split(';').map{ |v| v.gsub(/^.*\|/, '') }.join(DELIM)+DELIM
-          else
-            # Print all other columns
-            F_RESULTS.print "#{value}#{DELIM}"
-          end
+      # Get ref and alt alleles
+      if FORMAT != 'raw'
+        # Formatted results
+        alleles = Genome.get_ref_alt_from_hgvs(row['description'])
+        if !alleles.nil?
+          # Successfully retrieved ref and alt from HGVS
+          ref,alts = alleles[0..1]
         else
-          # Print raw results
-          F_RESULTS.print "#{value}\t"
+          # HGVS returned nothing... Search for ref and alt fields in the description column
+          ref = Genome.get_ref(row['description'], SOURCE, row['strand'])
+          alts = Genome.get_alt(row['description'], SOURCE, row['strand'])
         end
+        alts = alts.split(',')
+      else
+        # Raw format
+        # This alt is arbitrary and is only meant to trigger the loop below
+        alts = ['.']
       end
-      F_RESULTS.puts # end of row
-    end
+      
+      # Print a row for every alt
+      alts.each do |alt|
+        row.each_pair do |key, value|
+          if FORMAT != 'raw'
+            # Formatted results
+            if key == 'feature_end'
+              # Print 'feature_end' value, then...
+              F_RESULTS.print "#{value}#{DELIM}"
+              # ...print ref/alt allele
+              F_RESULTS.print "#{ref}#{DELIM}"
+              F_RESULTS.print "#{alt}#{DELIM}"
+            elsif key == 'description'
+              # Split the 'description' column into separate columns
+              F_RESULTS.print value.split(';').map{ |v| v.gsub(/^.*\|/, '') }.join(DELIM)+DELIM
+            else
+              # Print all other columns
+              F_RESULTS.print "#{value}#{DELIM}"
+            end
+          else
+            # Raw format
+            F_RESULTS.print "#{value}\t"
+          end
+        end
+        F_RESULTS.puts  # end of row
+      end  # end alts.each
+    end  # end results
   end
 
   # Print missing

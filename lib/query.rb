@@ -21,10 +21,9 @@ class Query
     results = nil
     # Search by chromosomal region and HGNC gene name
     if ['hgmd', 'clinvar', 'dbnsfp', 'evs'].include?(source)
-# TODO Change the query to:
-#   AND feature_end >= #{pos_start} 
-#   AND feature_start <= #{pos_end}
-puts "NOTICE: You are querying the gene region incorrectly"
+      # TODO Ideally, the query should be:
+      #   AND feature_end >= #{pos_start} 
+      #   AND feature_start <= #{pos_end}
       results = CLIENT.query("
         SELECT *
         FROM ngs_feature
@@ -66,12 +65,11 @@ puts "NOTICE: You are querying the gene region incorrectly"
     ngs_ontology_no = ACCEPTED_SOURCES[source]
 
     chr,pos_start,pos_end = Genome.split_region(region)
-# TODO Change the query to:
-#   AND feature_end >= #{pos_start} 
-#   AND feature_start <= #{pos_end}
-puts "NOTICE: You are querying the region incorrectly"
     # Search region
     results = nil
+    # TODO Ideally, the query should be:
+    #   AND feature_end >= #{pos_start} 
+    #   AND feature_start <= #{pos_end}
     results = CLIENT.query("
       SELECT *
       FROM ngs_feature
