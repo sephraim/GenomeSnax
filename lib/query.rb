@@ -15,39 +15,24 @@ class Query
 
     # Find gene region
     line = ""
-    open(GENE_REFERENCE) { |f| line = f.grep(/\b#{gene}\b/i)[0] }
-    chr,pos_start,pos_end = line.split("\t")
+    open(GENE_REFERENCE) { |f| line = f.grep(/\b#{gene.strip}\b/i)[0] }
 
-    results = nil
-    # Search by chromosomal region and HGNC gene name
-    if ['hgmd', 'clinvar', 'dbnsfp', 'evs'].include?(source)
-      # TODO Ideally, the query should be:
-      #   AND feature_end >= #{pos_start} 
-      #   AND feature_start <= #{pos_end}
-
-      # TODO better search for HGNC gene name
-      results = CLIENT.query("
-        SELECT *
-        FROM ngs_feature
-        WHERE genome = '#{BUILD}'
-        AND ngs_ontology_no = #{ngs_ontology_no}
-        AND ((chromosome = '#{chr}' AND feature_start >= #{pos_start} AND feature_end <= #{pos_end})
-        OR description LIKE '%;hgnc|#{gene};%')
-      ")
-    elsif ['dbsnp'].include?(source)
-      # Search by chromosomal region only
-      results = CLIENT.query("
-        SELECT *
-        FROM ngs_feature
-        WHERE genome = '#{BUILD}'
-        AND ngs_ontology_no = #{ngs_ontology_no}
-        AND chromosome = '#{chr}'
-        AND feature_start >= #{pos_start} 
-        AND feature_end <= #{pos_end} 
-      ")
+    if line.nil?
+      return nil
     else
-      Error.fatal("Gene query for #{source} has not been specified")
+      chr,pos_start,pos_end = line.split("\t")
     end
+
+    # Search by chromosomal region and HGNC gene name
+    results = CLIENT.query("
+      SELECT *
+      FROM ngs_feature
+      WHERE genome = '#{BUILD}'
+      AND ngs_ontology_no = #{ngs_ontology_no}
+      AND chromosome = '#{chr}'
+      AND ((feature_start >= #{pos_start} AND feature_start <= #{pos_end})
+            OR (feature_start >= #{pos_start.to_i - 1000} AND feature_start <= #{pos_end.to_i + 1000} AND description REGEXP ';hgnc[[.|.]]([^;]*,|[[.|.]]?)#{gene}[,;]'))
+    ")
     results = results.to_a
     if results.empty?
       return nil
@@ -68,10 +53,6 @@ class Query
 
     chr,pos_start,pos_end = Genome.split_region(region)
     # Search region
-    results = nil
-    # TODO Ideally, the query should be:
-    #   AND feature_end >= #{pos_start} 
-    #   AND feature_start <= #{pos_end}
     results = CLIENT.query("
       SELECT *
       FROM ngs_feature
