@@ -7,6 +7,9 @@ DATA_DIR = File.join(APP_ROOT, 'data')
 # Genes directory
 GENES_DIR = File.join(DATA_DIR, 'genes')
 
+# Empty output value
+EMPTY_VALUE = '.'
+
 # Accepted input types
 ACCEPTED_TYPES = [
   'gene',
@@ -40,7 +43,7 @@ ACCEPTED_FORMATS = {
 # Token for the reference allele in the description column
 REF_ALLELE_TOKEN = {
   'clinvar' => 'ref',
-  'dbnsfp'  => 'ref',
+  'dbnsfp'  => 'dbNSFP_ref',
   'dbsnp'   => 'DbSNP_refNCBI',
   'evs'     => 'evs_RefBaseNCBI37',
   'gwas'    => 'ref',
@@ -50,7 +53,7 @@ REF_ALLELE_TOKEN = {
 # Token for the alternative allele in the description column
 ALT_ALLELE_TOKEN = {
   'clinvar' => 'alt',
-  'dbnsfp'  => 'altref',
+  'dbnsfp'  => 'dbNSFP_altref',
   'dbsnp'   => 'variation', # NOTE: Additional parsing needed
   'evs'     => 'alt',
   'gwas'    => 'alt',

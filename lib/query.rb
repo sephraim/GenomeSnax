@@ -24,6 +24,8 @@ class Query
       # TODO Ideally, the query should be:
       #   AND feature_end >= #{pos_start} 
       #   AND feature_start <= #{pos_end}
+
+      # TODO better search for HGNC gene name
       results = CLIENT.query("
         SELECT *
         FROM ngs_feature
@@ -121,19 +123,32 @@ class Query
   # @return [Array/Nil] Query result or nil
   ##
   def self.variant(variant, source)
-    if source == 'hgmd'
-      return Hgmd.query_variant(variant)
-    elsif source == 'clinvar'
-      return Clinvar.query_variant(variant)
-    elsif source == 'dbsnp'
-      return Dbsnp.query_variant(variant)
-    elsif source == 'dbnsfp'
-      return Dbnsfp.query_variant(variant)
-    elsif source == 'evs'
-      return Evs.query_variant(variant)
-    else
-      Error.fatal("Variant query for #{source} has not been specified")
+    chr,pos,ref1,alt1 = Genome.split_variant(variant)
+
+    # EMPTY_VALUE as input is not accepted
+    if ref1 == EMPTY_VALUE || alt1 == EMPTY_VALUE
+      return nil
     end
+
+    # First search by position...
+    results = Query.position(variant, source)
+
+    # ... Then check compare all ref and alt alleles
+    if !results.nil?
+      results.each do |row|
+        ref2,alts2 = Genome.get_ref_alt(row['description'], source)
+        next if ref2 == EMPTY_VALUE || alts2 == EMPTY_VALUE
+        # Check all possible alt alleles
+        alts2.split(',').each do |alt2|
+          alt2.strip!
+          if ref1 == ref2 && alt1 == alt2
+            return [[row],chr,pos,ref1,alt1]
+          end
+        end
+      end
+    end
+
+    # Return nil if not found
     return nil
   end
 end

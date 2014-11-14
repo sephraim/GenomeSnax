@@ -28,7 +28,7 @@ opts = Trollop::options do
 end
 
 # Type of input list
-TYPE  = opts[:type]
+TYPE = opts[:type]
 if !ACCEPTED_TYPES.include?(TYPE)
   Error.fatal("#{TYPE} is not a valid type")
 end
@@ -54,7 +54,7 @@ else
 end
 
 # Database credentials
-HOST = opts[:host]
+HOST     = opts[:host]
 DATABASE = opts[:database]
 USERNAME = opts[:username]
 PASSWORD = opts[:password]
@@ -98,7 +98,7 @@ begin
 
   # Query Genome Trax
   terms.each_with_index do |term, index|
-    next if !term.match(/^#/).nil? # Skip lines that start with #
+    next if !term.match(/^(#|$)/).nil? # Skip lines that start with # and empty lines
 
     if TYPE == 'gene'
       # Set gene regions reference file
@@ -122,7 +122,7 @@ begin
       # Query by variant
       puts "Variant #{index+1} of #{num_terms}" if PROGRESS
       term.prepend("chr") if term.match(/^chr/).nil? # Add 'chr' to front if missing
-      results = Query.variant(term, SOURCE)
+      results,chr,pos,ref,alt = Query.variant(term, SOURCE)
     end
 
     if results.nil?
@@ -130,7 +130,11 @@ begin
       Print.missing(term)
     else
       # Found
-      Print.results(results)
+      if TYPE == 'variant'
+        Print.results(results, :ref => ref, :alt => alt)
+      else
+        Print.results(results)
+      end
     end
   end # end querying terms
 

@@ -23,7 +23,7 @@ class Print
             # Print "ref" and "alt" headers
             F_RESULTS.print key+DELIM+"ref"+DELIM+"alt"+DELIM
           elsif key == 'description'
-            # Split the 'description' column into separate columns
+            # Split the 'description' column headers into separate columns
             F_RESULTS.print value.split(';').map{ |v| v.gsub(/\|.*$/, '').prepend("#{source}_") }.join(DELIM)+DELIM
           else
             # Keep all other columns (i.e. not 'description') intact
@@ -36,21 +36,23 @@ class Print
   end
 
   # Print results
-  def self.results(results)
+  def self.results(results, opts = {})
     results.each do |row|
       # Get ref and alt alleles
       if FORMAT != 'raw'
         # Formatted results
-        alleles = Genome.get_ref_alt_from_hgvs(row['description'])
-        if !alleles.nil?
-          # Successfully retrieved ref and alt from HGVS
-          ref,alts = alleles[0..1]
+
+        if opts[:ref].nil? || opts[:alt].nil?
+          # Ref/Alt alleles aren't defined... find them
+          ref,alts = Genome.get_ref_alt(row['description'], SOURCE)
+          # Split up alt alleles so that 1 row is printed per allele
+          # Searching for a specific variant should only return 1 row max
+          alts = alts.split(',')
         else
-          # HGVS returned nothing... Search for ref and alt fields in the description column
-          ref = Genome.get_ref(row['description'], SOURCE, row['strand'])
-          alts = Genome.get_alt(row['description'], SOURCE, row['strand'])
+          # Ref/Alt alleles already defined... use them
+          ref = opts[:ref]
+          alts = [opts[:alt]]
         end
-        alts = alts.split(',')
       else
         # Raw format
         # This alt is arbitrary and is only meant to trigger the loop below
