@@ -4,7 +4,11 @@
 class Print
 
   # Print header
-  def self.header(source)
+  #
+  # @param source [String] Data source (e.g. hgmd, clinvar)
+  # @param file [File] Output file
+  # @return [Nil]
+  def self.header(source, file)
     # Set ngs_ontology_num based on source
     results = CLIENT.query("
       SELECT *
@@ -15,36 +19,46 @@ class Print
     results.each do |row|
       if FORMAT == 'raw'
         # Print raw output from Genome Trax
-        row.each_key {|key| F_RESULTS.print "#{key}\t"}
+        row.each_key {|key| file.print "#{key}\t"}
       else
         # Print formatted (delimited) output from Genome Trax
         row.each_pair do |key, value|
           if key == 'feature_end'
             # Print "ref" and "alt" headers
-            F_RESULTS.print key+DELIM+"ref"+DELIM+"alt"+DELIM
+            file.print key+DELIM+"ref"+DELIM+"alt"+DELIM
           elsif key == 'description'
             # Split the 'description' column headers into separate columns
-            F_RESULTS.print value.split(';').map{ |v| v.gsub(/\|.*$/, '').prepend("#{source}_") }.join(DELIM)+DELIM
+            file.print value.split(';').map{ |v| v.gsub(/\|.*$/, '').prepend("#{source}_") }.join(DELIM)+DELIM
           else
             # Keep all other columns (i.e. not 'description') intact
-            F_RESULTS.print key.to_s+DELIM
+            file.print key.to_s+DELIM
           end
         end
       end
-      F_RESULTS.puts # end of row
+      file.puts # end of row
     end
+    return nil
   end
 
   # Print results
-  def self.results(results, opts = {})
+  #
+  # @param results [Array] Array of hashes, each hash is one database row
+  # @param file [File] Output file
+  # @param opts [Hash] Options for printing results
+  # @option opts [String] :ref Referenece allele
+  # @option opts [String] :alt Alternate allele
+  # @option opts [String] :source Data source (e.g. hgmd, clinvar)
+  # @return [Nil]
+  def self.results(results, file, opts = {})
     results.each do |row|
       # Get ref and alt alleles
       if FORMAT != 'raw'
         # Formatted results
 
         if opts[:ref].nil? || opts[:alt].nil?
+          Error.fatal("You must specify a source if you don't specify ref/alt alleles") if opts[:source].nil?
           # Ref/Alt alleles aren't defined... find them
-          ref,alts = Genome.get_ref_alt(row['description'], SOURCE)
+          ref,alts = Genome.get_ref_alt(row['description'], opts[:source])
           # Split up alt alleles so that 1 row is printed per allele
           # Searching for a specific variant should only return 1 row max
           alts = alts.split(',')
@@ -66,29 +80,35 @@ class Print
             # Formatted results
             if key == 'feature_end'
               # Print 'feature_end' value, then...
-              F_RESULTS.print "#{value}#{DELIM}"
+              file.print "#{value}#{DELIM}"
               # ...print ref/alt allele
-              F_RESULTS.print "#{ref}#{DELIM}"
-              F_RESULTS.print "#{alt}#{DELIM}"
+              file.print "#{ref}#{DELIM}"
+              file.print "#{alt}#{DELIM}"
             elsif key == 'description'
               # Split the 'description' column into separate columns
-              F_RESULTS.print value.split(';').map{ |v| v.gsub(/^.*\|/, '') }.join(DELIM)+DELIM
+              file.print value.split(';').map{ |v| v.gsub(/^.*\|/, '') }.join(DELIM)+DELIM
             else
               # Print all other columns
-              F_RESULTS.print "#{value}#{DELIM}"
+              file.print "#{value}#{DELIM}"
             end
           else
             # Raw format
-            F_RESULTS.print "#{value}\t"
+            file.print "#{value}\t"
           end
         end
-        F_RESULTS.puts  # end of row
+        file.puts  # end of row
       end  # end alts.each
     end  # end results
+    return nil
   end
 
   # Print missing
-  def self.missing(term)
-    F_MISSING.puts term
+  #
+  # @param term [String] Query term that returned no results
+  # @param file [File] Output file
+  # @return [Nil]
+  def self.missing(term, file)
+    file.puts term
+    return nil
   end
 end

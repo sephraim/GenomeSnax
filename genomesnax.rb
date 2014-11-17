@@ -20,7 +20,6 @@ opts = Trollop::options do
   opt :build, "Genomic build (e.g. hg19)", :default => CONFIG[:build], :short => "-b"
   opt :progress, "Show progress", :default => false, :short => "-p"
   opt :source, "Data source (e.g. hgmd, clinvar, dbsnp)", :type => :string, :required => true, :short => "-s"
-  opt :noheader, "Don't include header in output file", :default => false, :short => "-n"
   opt :username, "MySQL username", :default => CONFIG[:username], :short => "-U"
   opt :password, "MySQL password", :default => CONFIG[:password], :short => "-P"
   opt :host, "MySQL host", :default => CONFIG[:host], :short => "-H"
@@ -40,9 +39,11 @@ if opts[:build].match(/^hg[0-9]{1,2}$/).nil?
 end
 
 # Data source
-SOURCE = opts[:source]
-if !ACCEPTED_SOURCES.keys.include?(SOURCE)
-  Error.fatal("#{SOURCE} is not a valid source")
+SOURCES = opts[:source].split(',')
+SOURCES.each do |source|
+  if !ACCEPTED_SOURCES.keys.include?(source)
+    Error.fatal("#{source} is not a valid source")
+  end
 end
 
 # Output format and delimiter
@@ -65,21 +66,88 @@ PROGRESS = opts[:progress]
 # Set input file
 F_IN = opts[:in]
 
-# Set output file
+# Read in terms (i.e. genes, positions, regions, or variants) list
+TERMS = File.read(F_IN).split("\n").collect{|line| line.strip.chomp}
+NUM_TERMS = TERMS.size
+  
+# Set merged output file
 if !opts[:out].nil?
-  RESULTS_FILENAME = opts[:out]
+  MERGED_RESULTS_FILENAME = opts[:out]
 else
-  RESULTS_FILENAME = "#{File.dirname(F_IN)}/#{File.basename(F_IN, '.*')}.#{SOURCE}.#{CONFIG[:ext_out]}"
+  MERGED_RESULTS_FILENAME = "#{File.dirname(F_IN)}/#{File.basename(F_IN, '.*')}.#{CONFIG[:ext_out]}"
 end
-F_RESULTS = File.open(RESULTS_FILENAME, 'w')
+#F_MERGED_RESULTS = File.open(MERGED_RESULTS_FILENAME, 'w')
 
-# Set errors file
-if !opts[:missing].nil?
-  MISSING_FILENAME = opts[:missing]
+# Temporary index file used for merging results
+MERGED_INDEX_FILENAME = MERGED_RESULTS_FILENAME + ".temp_index"
+
+
+# Keep track of all opened files
+source_results_filenames = []
+source_missing_filenames = []
+
+# TODO Merge results
+source_results_filenames << "REGIONS.hgmd.out"
+source_results_filenames << "REGIONS.clinvar.out"
+source_results_filenames << "REGIONS.dbsnp.out"
+puts "Merging results..." if PROGRESS
+if FORMAT == 'raw'
+  source_results_filenames.each_with_index do |filename, file_num|
+    if file_num < 1
+      # Copy all source results (including header) into merged file
+      `cp -f #{filename} #{MERGED_RESULTS_FILENAME}`
+    else
+      # Copy all source results (excluding header) into merged file
+      `tail -n +2 #{filename} >> #{MERGED_RESULTS_FILENAME}`
+    end
+  end
 else
-  MISSING_FILENAME = "#{File.dirname(F_IN)}/#{File.basename(F_IN, '.*')}.#{SOURCE}.#{CONFIG[:ext_missing]}"
+  # Create temporary index file of all variants
+  puts "Creating index file to merge results..." if PROGRESS
+  `tail -q -n +2 #{source_results_filenames.join(' ')} | cut -f2-6 | sort -u > #{MERGED_INDEX_FILENAME}`
+
+  # Merge headers
+  header = ""
+  num_description_fields = {}
+  source_results_filenames.each_with_index do |filename, file_num|
+    result = `head -1 #{filename}`.chomp.split(DELIM)
+
+    # Delete last element (ngs_ontology_no)
+    result.pop
+
+    # Delete unnecessary columns and find out how many description columns there are
+    if file_num < 1
+      # Delete first column (Genome Trax unique ID)
+      num_description_fields[filename] = result.drop(10).length
+      result.shift
+    else
+      # Delete all columns that have already been printed
+      result.shift(10)
+      num_description_fields[filename] = result.length
+    end
+
+    header += result.join(DELIM) + DELIM
+  end
+
+  # TODO Merge results
+  File.open(MERGED_INDEX_FILENAME).each_line do |variant|
+    variant.strip!
+    row = variant+DELIM
+    source_results_filenames.each do |filename|
+      result = `grep '#{DELIM+variant+DELIM}' #{filename} | cut -f1-6`
+      if !result.nil?
+        row += result
+      else
+        # TODO put N-number of EMPTY placholders
+      end
+    end
+puts row
+exit
+  end
 end
-F_MISSING = File.open(MISSING_FILENAME, 'w')
+puts "Merged results written to #{MERGED_RESULTS_FILENAME}" if PROGRESS
+puts "***** Done! *****"
+exit # <-- TODO remove this later
 
 begin
   CLIENT = Mysql2::Client.new(:host     => HOST,
@@ -87,56 +155,66 @@ begin
                               :username => USERNAME,
                               :password => PASSWORD)
 
-  # Print column headers
-  if !opts[:noheader]
-    Print.header(SOURCE)
-  end
+  SOURCES.each_with_index do |source, source_num|
+    # Set source output file
+    source_results_filename = "#{File.dirname(F_IN)}/#{File.basename(F_IN, '.*')}.#{source}.#{CONFIG[:ext_out]}"
+    source_results_filenames << source_results_filename
+    f_source_results = File.open(source_results_filename, 'w')
+    
+    # Set source errors file
+    source_missing_filename = "#{File.dirname(F_IN)}/#{File.basename(F_IN, '.*')}.#{source}.#{CONFIG[:ext_missing]}"
+    source_missing_filenames << source_missing_filename
+    f_source_missing = File.open(source_missing_filename, 'w')
 
-  # Read in terms (i.e. genes, positions, or variants) list
-  terms = File.read(F_IN).split("\n").collect{|line| line.strip.chomp}
-  num_terms = terms.size
-
-  # Query Genome Trax
-  terms.each_with_index do |term, index|
-    next if !term.match(/^(#|$)/).nil? # Skip lines that start with # and empty lines
-
-    if TYPE == 'gene'
-      # Set gene regions reference file
-      GENE_REFERENCE = File.join(GENES_DIR, "gene_regions_#{BUILD}.txt")
-      Error.fatal("Gene region reference file does not exist at #{GENE_REFERENCE}") if !File.exist?(GENE_REFERENCE)
-
-      # Query by gene
-      puts "Gene #{index+1} of #{num_terms}" if PROGRESS
-      results = Query.gene(term, SOURCE)
-    elsif TYPE == 'region'
-      # Query by chromosome region
-      puts "Region #{index+1} of #{num_terms}" if PROGRESS
-      term.prepend("chr") if term.match(/^chr/).nil? # Add 'chr' to front if missing
-      results = Query.region(term, SOURCE)
-    elsif TYPE == 'position'
-      # Query by position
-      puts "Position #{index+1} of #{num_terms}" if PROGRESS
-      term.prepend("chr") if term.match(/^chr/).nil? # Add 'chr' to front if missing
-      results = Query.position(term, SOURCE)
-    elsif TYPE == 'variant'
-      # Query by variant
-      puts "Variant #{index+1} of #{num_terms}" if PROGRESS
-      term.prepend("chr") if term.match(/^chr/).nil? # Add 'chr' to front if missing
-      results,chr,pos,ref,alt = Query.variant(term, SOURCE)
-    end
-
-    if results.nil?
-      # Not found
-      Print.missing(term)
-    else
-      # Found
-      if TYPE == 'variant'
-        Print.results(results, :ref => ref, :alt => alt)
-      else
-        Print.results(results)
+    # Print column headers
+    if source_num < 1 || FORMAT != 'raw'
+      Print.header(source, f_source_results)
+    end 
+  
+    # Query Genome Trax
+    TERMS.each_with_index do |term, term_num|
+      next if !term.strip.match(/^(#|$)/).nil? # Skip lines that start with # and empty lines
+  
+      if TYPE == 'gene'
+        # Set gene regions reference file
+        GENE_REFERENCE = File.join(GENES_DIR, "gene_regions_#{BUILD}.txt")
+        Error.fatal("Gene region reference file does not exist at #{GENE_REFERENCE}") if !File.exist?(GENE_REFERENCE)
+  
+        # Query by gene
+        puts "Searching #{source}; Gene #{term_num+1} of #{NUM_TERMS}" if PROGRESS
+        results = Query.gene(term, source)
+      elsif TYPE == 'region'
+        # Query by chromosome region
+        puts "Searching #{source}; Region #{term_num+1} of #{NUM_TERMS}" if PROGRESS
+        term.prepend("chr") if term.match(/^chr/).nil? # Add 'chr' to front if missing
+        results = Query.region(term, source)
+      elsif TYPE == 'position'
+        # Query by position
+        puts "Searching #{source}; Position #{term_num+1} of #{NUM_TERMS}" if PROGRESS
+        term.prepend("chr") if term.match(/^chr/).nil? # Add 'chr' to front if missing
+        results = Query.position(term, source)
+      elsif TYPE == 'variant'
+        # Query by variant
+        puts "Searching #{source}; Variant #{term_num+1} of #{NUM_TERMS}" if PROGRESS
+        term.prepend("chr") if term.match(/^chr/).nil? # Add 'chr' to front if missing
+        results,chr,pos,ref,alt = Query.variant(term, source)
       end
-    end
-  end # end querying terms
+  
+      if results.nil?
+        # Not found
+        Print.missing(term, f_source_missing)
+      else
+        # Found
+        if TYPE == 'variant'
+          Print.results(results, f_source_results, :ref => ref, :alt => alt)
+        else
+          Print.results(results, f_source_results, :source => source)
+        end
+      end
+    end # end querying terms
+    f_source_results.close
+    f_source_missing.close
+  end # end SOURCES.each
 
 rescue Mysql2::Error => e
   puts e.errno
@@ -145,5 +223,8 @@ ensure
   CLIENT.close if CLIENT
 end
 
-F_RESULTS.close
-F_MISSING.close
+# TODO Merge results
+
+# TODO Cleanup temp files
+
+#F_MERGED_RESULTS.close

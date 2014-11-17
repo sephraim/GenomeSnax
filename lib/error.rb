@@ -8,4 +8,11 @@ class Error
   def self.fatal(msg)
     abort "ERROR: #{msg}"
   end
+
+  # Throws a warning error but doesn't exit
+  #
+  # @param msg [String] Error message
+  def self.warning(msg)
+    abort "WARNING: #{msg}"
+  end
 end

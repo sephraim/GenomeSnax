@@ -52,8 +52,8 @@ class Genome
     ref,alts = Genome.get_ref_alt_from_hgvs(description)
     if ref == EMPTY_VALUE
       # HGVS returned nothing... Search for ref and alt fields in the description column
-      ref = Genome.get_ref_from_token(description, SOURCE)
-      alts = Genome.get_alt_from_token(description, SOURCE)
+      ref = Genome.get_ref_from_token(description, source)
+      alts = Genome.get_alt_from_token(description, source)
     end
     # If 1 allele is blank, both should be blank
     if ref == EMPTY_VALUE || alts == EMPTY_VALUE
