@@ -28,6 +28,7 @@ class Print
             file.print key+DELIM+"ref"+DELIM+"alt"+DELIM
           elsif key == 'description'
             # Split the 'description' column headers into separate columns
+            # TODO Don't add prefix for headers that already have prefix
             file.print value.split(';').map{ |v| v.gsub(/\|.*$/, '').prepend("#{source}_") }.join(DELIM)+DELIM
           else
             # Keep all other columns (i.e. not 'description') intact

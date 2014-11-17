@@ -86,69 +86,6 @@ MERGED_INDEX_FILENAME = MERGED_RESULTS_FILENAME + ".temp_index"
 source_results_filenames = []
 source_missing_filenames = []
 
-# TODO Merge results
-source_results_filenames << "REGIONS.hgmd.out"
-source_results_filenames << "REGIONS.clinvar.out"
-source_results_filenames << "REGIONS.dbsnp.out"
-puts "Merging results..." if PROGRESS
-if FORMAT == 'raw'
-  source_results_filenames.each_with_index do |filename, file_num|
-    if file_num < 1
-      # Copy all source results (including header) into merged file
-      `cp -f #{filename} #{MERGED_RESULTS_FILENAME}`
-    else
-      # Copy all source results (excluding header) into merged file
-      `tail -n +2 #{filename} >> #{MERGED_RESULTS_FILENAME}`
-    end
-  end
-else
-  # Create temporary index file of all variants
-  puts "Creating index file to merge results..." if PROGRESS
-  `tail -q -n +2 #{source_results_filenames.join(' ')} | cut -f2-6 | sort -u > #{MERGED_INDEX_FILENAME}`
-
-  # Merge headers
-  header = ""
-  num_description_fields = {}
-  source_results_filenames.each_with_index do |filename, file_num|
-    result = `head -1 #{filename}`.chomp.split(DELIM)
-
-    # Delete last element (ngs_ontology_no)
-    result.pop
-
-    # Delete unnecessary columns and find out how many description columns there are
-    if file_num < 1
-      # Delete first column (Genome Trax unique ID)
-      num_description_fields[filename] = result.drop(10).length
-      result.shift
-    else
-      # Delete all columns that have already been printed
-      result.shift(10)
-      num_description_fields[filename] = result.length
-    end
-
-    header += result.join(DELIM) + DELIM
-  end
-
-  # TODO Merge results
-  File.open(MERGED_INDEX_FILENAME).each_line do |variant|
-    variant.strip!
-    row = variant+DELIM
-    source_results_filenames.each do |filename|
-      result = `grep '#{DELIM+variant+DELIM}' #{filename} | cut -f1-6`
-      if !result.nil?
-        row += result
-      else
-        # TODO put N-number of EMPTY placholders
-      end
-    end
-puts row
-exit
-  end
-end
-puts "Merged results written to #{MERGED_RESULTS_FILENAME}" if PROGRESS
-puts "***** Done! *****"
-exit # <-- TODO remove this later
-
 begin
   CLIENT = Mysql2::Client.new(:host     => HOST,
                               :database => DATABASE,
@@ -223,8 +160,94 @@ ensure
   CLIENT.close if CLIENT
 end
 
-# TODO Merge results
+# Merge results
+puts "Finalize results..." if PROGRESS
+if FORMAT == 'raw'
+  source_results_filenames.each_with_index do |filename, file_num|
+    if file_num < 1
+      # Copy all source results (including header) into merged file
+      `cp -f #{filename} #{MERGED_RESULTS_FILENAME}`
+    else
+      # Copy all source results (excluding header) into merged file
+      `tail -n +2 #{filename} >> #{MERGED_RESULTS_FILENAME}`
+    end
+  end
+else
+  # Create temporary index file of all variants
+  puts "Creating index file to merge results..." if PROGRESS
+  `tail -q -n +2 #{source_results_filenames.join(' ')} | cut -f2-6 | sort -u > #{MERGED_INDEX_FILENAME}`
 
-# TODO Cleanup temp files
+  # Merge headers
+  header = ""
+  num_description_fields = {}
+  source_results_filenames.each_with_index do |filename, file_num|
+    result = `head -1 #{filename}`.chomp.split(DELIM)
 
-#F_MERGED_RESULTS.close
+    # Delete last element (ngs_ontology_no)
+    result.pop
+
+    # Delete unnecessary columns and find out how many description columns there are
+    if file_num < 1
+      num_description_fields[filename] = result.drop(DESCRIPTION_COLUMN_NUM-1).length
+      # Delete first column (Genome Trax unique ID)
+      result.shift
+      result.slice!(5..8)
+    else
+      # Delete all columns that have already been printed
+      result.shift(DESCRIPTION_COLUMN_NUM-1)
+      num_description_fields[filename] = result.length
+    end
+
+    header += result.join(DELIM) + DELIM
+  end
+  header.strip!
+  F_MERGED_RESULTS = File.open(MERGED_RESULTS_FILENAME, 'w')
+  F_MERGED_RESULTS.puts header
+
+  # Merge results
+  File.open(MERGED_INDEX_FILENAME).each_line do |variant|
+    variant.strip!
+    row = variant+DELIM
+    source_results_filenames.each do |filename|
+      result = `grep '#{DELIM+variant+DELIM}' #{filename} | cut -f#{DESCRIPTION_COLUMN_NUM}-#{DESCRIPTION_COLUMN_NUM+num_description_fields[filename]-1}`.strip
+      if result.empty?
+        # Add N-number of EMPTY_VALUE placholders
+        num_description_fields[filename].times { row += (EMPTY_VALUE+DELIM) }
+      else
+        if result.include?("\n")
+          # Combine multiple results
+          combined_values = []
+          result.each_line do |line|
+            line.strip!
+            i = 0
+            line.split(DELIM).each do |value|
+              if combined_values[i].nil?
+                combined_values[i] = value
+              else
+                combined_values[i] += ";#{value}"
+              end
+              i += 1
+            end
+          end
+          row += combined_values.join(DELIM)+DELIM
+        else
+          # Handle singe result
+          row += result+DELIM
+        end
+      end
+    end
+    row.strip!
+    F_MERGED_RESULTS.puts row
+  end
+end
+F_MERGED_RESULTS.close
+
+# Cleanup temp files
+puts "Cleaning up temporary files..." if PROGRESS
+File.delete(MERGED_INDEX_FILENAME)
+source_results_filenames.each do |filename|
+  File.delete(filename)
+end
+
+puts "Final results written to #{MERGED_RESULTS_FILENAME}" if PROGRESS
+puts "***** Done! *****" if PROGRESS

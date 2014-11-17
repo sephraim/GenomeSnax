@@ -10,6 +10,9 @@ GENES_DIR = File.join(DATA_DIR, 'genes')
 # Empty output value
 EMPTY_VALUE = '.'
 
+# 'description' column number in the MySQL database (1-based)
+DESCRIPTION_COLUMN_NUM = 11
+
 # Accepted input types
 ACCEPTED_TYPES = [
   'gene',
