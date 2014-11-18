@@ -11,7 +11,7 @@ class Query
   # @return [Array/Nil] Query result or nil
   ##
   def self.gene(gene, source)
-    ngs_ontology_no = ACCEPTED_SOURCES[source]
+    ngs_ontology_no = VALID_SOURCES[source]
 
     # Find gene region
     line = ""
@@ -49,9 +49,11 @@ class Query
   # @return [Array/Nil] Query result or nil
   ##
   def self.region(region, source)
-    ngs_ontology_no = ACCEPTED_SOURCES[source]
+    ngs_ontology_no = VALID_SOURCES[source]
 
     chr,pos_start,pos_end = Genome.split_region(region)
+    return nil if chr.nil?
+
     # Search region
     results = CLIENT.query("
       SELECT *
@@ -78,8 +80,10 @@ class Query
   # @return [Array/Nil] Query result or nil
   ##
   def self.position(position, source)
-    ngs_ontology_no = ACCEPTED_SOURCES[source]
+    ngs_ontology_no = VALID_SOURCES[source]
     chr,pos = Genome.split_variant(position)
+    return nil if chr.nil?
+
     results = CLIENT.query("
       SELECT *
       FROM ngs_feature
@@ -107,7 +111,7 @@ class Query
     chr,pos,ref1,alt1 = Genome.split_variant(variant)
 
     # EMPTY_VALUE as input is not accepted
-    if ref1 == EMPTY_VALUE || alt1 == EMPTY_VALUE
+    if chr.nil? || ref1 == EMPTY_VALUE || alt1 == EMPTY_VALUE
       return nil
     end
 

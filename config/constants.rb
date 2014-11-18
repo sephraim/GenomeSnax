@@ -7,14 +7,20 @@ DATA_DIR = File.join(APP_ROOT, 'data')
 # Genes directory
 GENES_DIR = File.join(DATA_DIR, 'genes')
 
-# Empty output value
+# Temp file directory
+TMP_DIR = File.join(APP_ROOT, 'tmp')
+
+# Preferred empty output value
 EMPTY_VALUE = '.'
+
+# Native empty value seen in original data
+NATIVE_EMPTY_VALUE = 'N/A'
 
 # 'description' column number in the MySQL database (1-based)
 DESCRIPTION_COLUMN_NUM = 11
 
 # Accepted input types
-ACCEPTED_TYPES = [
+VALID_TYPES = [
   'gene',
   'region',
   'position',
@@ -22,7 +28,7 @@ ACCEPTED_TYPES = [
 ]
 
 # Accepted data sources
-ACCEPTED_SOURCES = {
+VALID_SOURCES = {
   'clinvar' => 32,
   'dbnsfp'  => 26,
   'dbsnp'   => 33,
@@ -38,7 +44,7 @@ ACCEPTED_SOURCES = {
 }
 
 # Accepted output formats
-ACCEPTED_FORMATS = {
+VALID_FORMATS = {
   'tab' => "\t",
   'raw' => nil,
 }

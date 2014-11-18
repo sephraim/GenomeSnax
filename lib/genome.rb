@@ -22,24 +22,40 @@ class Genome
   # The parts are chromosome, position, ref allele, alt allele.
   #
   # @param variant [String] Variant as one string
-  # @return [Array] Variant parts [chr, pos, ref, alt]
+  # @return [Array, Nil] Variant parts [chr, pos, ref, alt]; nil if invalid
   def self.split_variant(variant)
-    chr,pos,ref,alt = variant.split(/[^a-zA-Z\d\-]/)
-    # Check if the 3rd column is actually the ID column (for VCF files)
-    if ref.match(/^[a-zA-Z\-]/).nil?
+    variant_parts = variant.split(/[^a-zA-Z\d\-]/)
+    if variant_parts.size == 4
+      chr,pos,ref,alt = variant_parts
+    elsif variant_parts.size > 4
+      # More than 4 parts assumes input is a VCF file
       chr,pos,id,ref,alt = variant.split(/[^a-zA-Z\d\-]/)
+    else
+      # Less than 4 parts assumes something's wrong with the input
+      return nil
     end
-    return [chr, pos, ref, alt]
+
+    # Assure that chr is formatted correctly, pos is an integer and that ref/alt are characters or -
+    if !!(chr =~ /(^chr|^)[1-9]?[0-9XY]$/) && !!(pos =~ /^[\d]*$/) && !!(ref =~ /^[a-zA-Z\-]*$/) && !!(alt =~ /^[a-zA-Z\-]*$/)
+      return [chr, pos, ref, alt]
+    else
+      return nil
+    end
   end
 
   # Splits the chromosomal region string into its separate parts.
   # The parts are chromosome, start position, and end position.
   #
   # @param region [String] Chromosomal region as one string
-  # @return [Array] Region parts [chr, start_pos, end_pos]
+  # @return [Array, Nil] Region parts [chr, pos_start, pos_end]; nil if invalid
   def self.split_region(variant)
-    chr,start_pos,end_pos = variant.split(/[^a-zA-Z\d]/)
-    return [chr, start_pos, end_pos]
+    chr,pos_start,pos_end = variant.split(/[^a-zA-Z\d]/)
+    # Assure that chr is formatted correctly and that pos_start/pos_end are integers
+    if !!(chr =~ /(^chr|^)[1-9]?[0-9XY]$/) && !!(pos_start =~ /^[\d]*$/) && !!(pos_end =~ /^[\d]*$/)
+      return [chr, pos_start, pos_end]
+    else
+      return nil
+    end
   end
 
   # Get Ref Alt
@@ -70,7 +86,7 @@ class Genome
   # If the 'hgvs' field exists in the description column, then it will parse
   # out the ref and alt allele(s). If these alleles are blank strings, they
   # will be converted to EMPTY_VALUE instead. If 'hgvs' does not exist in the description
-  # column or if it just equals 'N/A', then empty value placeholders will be returned.
+  # column or if it just equals NATIVE_EMPTY_VALUE, then empty value placeholders will be returned.
   #
   # @param description [String] Description column value
   # @return [Array] Ref allele, alt allele(s) ([EMPTY_VALUE, EMTPY_VALUE] if they don't exist)
@@ -124,7 +140,7 @@ class Genome
   # @return [String] Reference allele (EMPTY_VALUE if missing)
   def self.get_ref_from_token(description, source)
     match = description.match(/\b#{REF_ALLELE_TOKEN[source]}\|([a-zA-Z\-\/]*)/)
-    if match.nil? || match[1] == "N/A"
+    if match.nil? || match[1] == NATIVE_EMPTY_VALUE
       return EMPTY_VALUE
     else
       return match[1]
@@ -159,7 +175,7 @@ class Genome
       alt = alleles.join(',')
     end
 
-    if alt == 'N/A' || alt.nil?
+    if alt == NATIVE_EMPTY_VALUE || alt.nil?
       return EMPTY_VALUE
     else
       return alt

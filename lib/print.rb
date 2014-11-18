@@ -8,12 +8,12 @@ class Print
   # @param source [String] Data source (e.g. hgmd, clinvar)
   # @param file [File] Output file
   # @return [Nil]
-  def self.header(source, file)
+  def self.source_header(source, file)
     # Set ngs_ontology_num based on source
     results = CLIENT.query("
       SELECT *
       FROM ngs_feature
-      WHERE ngs_ontology_no = #{ACCEPTED_SOURCES[source]}
+      WHERE ngs_ontology_no = #{VALID_SOURCES[source]}
       LIMIT 1
     ")
     results.each do |row|
@@ -28,8 +28,15 @@ class Print
             file.print key+DELIM+"ref"+DELIM+"alt"+DELIM
           elsif key == 'description'
             # Split the 'description' column headers into separate columns
-            # TODO Don't add prefix for headers that already have prefix
-            file.print value.split(';').map{ |v| v.gsub(/\|.*$/, '').prepend("#{source}_") }.join(DELIM)+DELIM
+            fields = value.split(';')
+            fields.each do |f|
+              f.gsub!(/\|.*$/, '')
+              if !f.match(/^#{source}_/i)
+                # Add prefix for headers that don't already have a prefix
+                f = f.prepend("#{source}_")
+              end
+            end
+            file.print fields.join(DELIM)+DELIM
           else
             # Keep all other columns (i.e. not 'description') intact
             file.print key.to_s+DELIM
@@ -50,7 +57,7 @@ class Print
   # @option opts [String] :alt Alternate allele
   # @option opts [String] :source Data source (e.g. hgmd, clinvar)
   # @return [Nil]
-  def self.results(results, file, opts = {})
+  def self.source_results(results, file, opts = {})
     results.each do |row|
       # Get ref and alt alleles
       if FORMAT != 'raw'
@@ -77,6 +84,7 @@ class Print
       # Print a row for every alt
       alts.each do |alt|
         row.each_pair do |key, value|
+          value = EMPTY_VALUE if value == NATIVE_EMPTY_VALUE
           if FORMAT != 'raw'
             # Formatted results
             if key == 'feature_end'
@@ -87,7 +95,8 @@ class Print
               file.print "#{alt}#{DELIM}"
             elsif key == 'description'
               # Split the 'description' column into separate columns
-              file.print value.split(';').map{ |v| v.gsub(/^.*\|/, '') }.join(DELIM)+DELIM
+              # Values that are NATIVE_EMPTY_VALUE will be mapped to EMPTY_VALUE instead
+              file.print value.split(';').map{ |v| v.gsub(/^.*\|/, '') }.map{ |v| (v == NATIVE_EMPTY_VALUE) ? EMPTY_VALUE : v }.join(DELIM)+DELIM
             else
               # Print all other columns
               file.print "#{value}#{DELIM}"
@@ -107,9 +116,111 @@ class Print
   #
   # @param term [String] Query term that returned no results
   # @param file [File] Output file
+  # @param opts [Hash] Options for printing results
+  # @option opts [String] :source Data source that returned no results
   # @return [Nil]
-  def self.missing(term, file)
-    file.puts term
+  def self.missing(term, file, opts = {})
+    if opts[:source].nil?
+      file.puts "Missing ".ljust(30, '.') + " #{term}"
+    else
+      file.puts "Missing from #{opts[:source].upcase} ".ljust(30, '.') + " #{term}"
+    end
+
+    return nil
+  end
+
+  # Print merged results
+  #
+  # @param source_results_filenames [Array] List of files to merge
+  # @param merged_file_name [String] Output file name
+  # @return [Nil]
+  def self.merged_results(source_results_filenames, merged_file_name)
+    # Temporary index file used for merging results
+    merged_index_file_name = File.join(TMP_DIR, merged_file_name + ".index.tmp")
+
+    # Merge results
+    if FORMAT == 'raw'
+      source_results_filenames.each_with_index do |filename, file_num|
+        if file_num < 1
+          # Copy all source results (including header) into merged file
+          `cp -f #{filename} #{merged_file_name}`
+        else
+          # Copy all source results (excluding header) into merged file
+          `tail -n +2 #{filename} >> #{merged_file_name}`
+        end
+      end
+    else
+      # Create temporary index file of all variants
+      # TODO Merge duplicated records of 1 variant on opposite strands
+      puts "- Creating index file to merge results..." if PROGRESS
+      `tail -q -n +2 #{source_results_filenames.join(' ')} | cut -f2-6 | sort -u > #{merged_index_file_name}`
+    
+      puts "- Merging all results..." if PROGRESS
+      # Merge headers
+      header = ""
+      num_description_fields = {}
+      source_results_filenames.each_with_index do |filename, file_num|
+        result = `head -1 #{filename}`.chomp.split(DELIM)
+    
+        # Delete last element (ngs_ontology_no)
+        result.pop
+    
+        # Delete unnecessary columns and find out how many description columns there are
+        if file_num < 1
+          num_description_fields[filename] = result.drop(DESCRIPTION_COLUMN_NUM-1).length
+          # Delete first column (Genome Trax unique ID)
+          result.shift
+          result.slice!(5..8)
+        else
+          # Delete all columns that have already been printed
+          result.shift(DESCRIPTION_COLUMN_NUM-1)
+          num_description_fields[filename] = result.length
+        end
+    
+        header += result.join(DELIM) + DELIM
+      end
+      header.strip!
+      f_merged = File.open(merged_file_name, 'w')
+      f_merged.puts header
+    
+      # Merge results
+      File.open(merged_index_file_name).each_line do |variant|
+        variant.strip!
+        row = variant+DELIM
+        source_results_filenames.each do |filename|
+          result = `grep '#{DELIM+variant+DELIM}' #{filename} | cut -f#{DESCRIPTION_COLUMN_NUM}-#{DESCRIPTION_COLUMN_NUM+num_description_fields[filename]-1}`.strip
+          if result.empty?
+            # Add N-number of EMPTY_VALUE placholders
+            num_description_fields[filename].times { row += (EMPTY_VALUE+DELIM) }
+          else
+            if result.include?("\n")
+              # Combine multiple results
+              combined_values = []
+              result.each_line do |line|
+                line.strip!
+                i = 0
+                line.split(DELIM).each do |value|
+                  if combined_values[i].nil?
+                    combined_values[i] = value
+                  else
+                    combined_values[i] += ";#{value}"
+                  end
+                  i += 1
+                end
+              end
+              row += combined_values.join(DELIM)+DELIM
+            else
+              # Handle singe result
+              row += result+DELIM
+            end
+          end
+        end
+        row.strip!
+        f_merged.puts row
+      end
+    end
+    f_merged.close
+    File.delete(merged_index_file_name)
     return nil
   end
 end
