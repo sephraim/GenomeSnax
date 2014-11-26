@@ -1,6 +1,11 @@
+*.vcf
+*.bam
 *.in
 *.out
 *.missing
 *.raw
 *.sh
 *.swp
+.bundle
+*~
+.DS_Store

@@ -18,6 +18,21 @@ class Genome
     return seq.join("")
   end
 
+  # Splits the position string into its separate parts.
+  # The parts are chromosome number/letter and  position.
+  #
+  # @param position [String] Chromosomal position as one string
+  # @return [Array, Nil] Variant parts [chr, pos]; nil if invalid
+  def self.split_position(position)
+    chr,pos = position.split(/[^a-zA-Z\d\-]/)
+    # Assure that chr is formatted correctly and pos is an integer
+    if !!(chr =~ /(^chr|^)([XY]|1?[1-9]|2[0-2]?)$/) && !!(pos =~ /^[\d]*$/)
+      return [chr, pos]
+    else
+      return nil
+    end
+  end
+
   # Splits the variant string into its separate parts.
   # The parts are chromosome, position, ref allele, alt allele.
   #
@@ -25,18 +40,18 @@ class Genome
   # @return [Array, Nil] Variant parts [chr, pos, ref, alt]; nil if invalid
   def self.split_variant(variant)
     variant_parts = variant.split(/[^a-zA-Z\d\-]/)
-    if variant_parts.size == 4
+    if variant_parts.size == 4 || variant_parts.size == 2
       chr,pos,ref,alt = variant_parts
     elsif variant_parts.size > 4
       # More than 4 parts assumes input is a VCF file
       chr,pos,id,ref,alt = variant.split(/[^a-zA-Z\d\-]/)
     else
-      # Less than 4 parts assumes something's wrong with the input
+      # 0, 1, or 3 parts assumes something's wrong with the input
       return nil
     end
 
     # Assure that chr is formatted correctly, pos is an integer and that ref/alt are characters or -
-    if !!(chr =~ /(^chr|^)[1-9]?[0-9XY]$/) && !!(pos =~ /^[\d]*$/) && !!(ref =~ /^[a-zA-Z\-]*$/) && !!(alt =~ /^[a-zA-Z\-]*$/)
+    if !!(chr =~ /(^chr|^)([XY]|1?[1-9]|2[0-2]?)$/) && !!(pos =~ /^[\d]*$/) && !!(ref =~ /^[a-zA-Z\-]*$/) && !!(alt =~ /^[a-zA-Z\-]*$/)
       return [chr, pos, ref, alt]
     else
       return nil
@@ -92,7 +107,7 @@ class Genome
   # @return [Array] Ref allele, alt allele(s) ([EMPTY_VALUE, EMTPY_VALUE] if they don't exist)
   def self.get_ref_alt_from_hgvs(description)
     # Parse out just the HGVS nucleotide change (if it exists)
-    if (match = description.match(/;hgvs\|NM_.*[:\s]c\.([^,;\s%]*)/))
+    if (match = description.match(/;hgvs\|NM_[^;]*[:\s]c\.([^,;\s%]*)/))
 
       hgvs_nchange = match[1]
       # Retrieve the ref and alt allele(s)

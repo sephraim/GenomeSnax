@@ -182,7 +182,7 @@ end
 
 # Cleanup empty missing files
 if File.zero?(MISSING_FILENAME)
-  File.delete(f)
+  File.delete(MISSING_FILENAME) if File.exist?(MISSING_FILENAME)
   puts "- All input terms returned results" if PROGRESS
 else
   puts "- Input terms with no results written to:\n\t#{MISSING_FILENAME.sub(/^\.\//, '')}" if PROGRESS

@@ -132,28 +132,57 @@ class Print
   # Print merged results
   #
   # @param source_results_filenames [Array] List of files to merge
-  # @param merged_file_name [String] Output file name
+  # @param merged_filename [String] Output file name
   # @return [Nil]
-  def self.merged_results(source_results_filenames, merged_file_name)
+  def self.merged_results(source_results_filenames, merged_filename)
     # Temporary index file used for merging results
-    merged_index_file_name = File.join(TMP_DIR, merged_file_name + ".index.tmp")
+    merged_index_filename = File.join(TMP_DIR, merged_filename + ".index.tmp")
 
     # Merge results
     if FORMAT == 'raw'
       source_results_filenames.each_with_index do |filename, file_num|
         if file_num < 1
           # Copy all source results (including header) into merged file
-          `cp -f #{filename} #{merged_file_name}`
+          `cp -f #{filename} #{merged_filename}`
         else
           # Copy all source results (excluding header) into merged file
-          `tail -n +2 #{filename} >> #{merged_file_name}`
+          `tail -n +2 #{filename} >> #{merged_filename}`
         end
       end
     else
       # Create temporary index file of all variants
-      # TODO Merge duplicated records of 1 variant on opposite strands
       puts "- Creating index file to merge results..." if PROGRESS
-      `tail -q -n +2 #{source_results_filenames.join(' ')} | cut -f2-6 | sort -u > #{merged_index_file_name}`
+      presorted_index_filename = merged_index_filename + '.presorted'
+      sorted_index_filename = merged_index_filename + '.sorted'
+      File.delete(presorted_index_filename) if File.exist?(presorted_index_filename)
+      File.delete(sorted_index_filename) if File.exist?(sorted_index_filename)
+      File.delete(merged_index_filename) if File.exist?(merged_index_filename)
+      # Step 1 of sorting by chromosomal position (sort by position only)
+      `tail -q -n +2 #{source_results_filenames.join(' ')} | cut -f2-6 | sort -k2,2n | uniq > #{presorted_index_filename}`
+      # Step 2 of sorting by chromosomal position (sort by chr+position)
+      ('1'..'22').to_a.push('X').push('Y').each do |chr|
+        `grep '^chr#{chr}\t' #{presorted_index_filename} >> #{sorted_index_filename}`
+      end
+
+      File.delete(presorted_index_filename) if File.exist?(presorted_index_filename)
+
+#      # TODO Merge duplicated records of 1 variant on opposite strands
+#      # NOTE: This may have to happen below instead
+#      File.open(sorted_index_filename).each_line do |variant|
+#        line.strip!
+#        chr,pos_start,pos_end = variant.strip.split(DELIM)
+#        results = `grep '#{chr+DELIM+pos_start+DELIM+pos_end+DELIM}' #{sorted_index_filename}`.split("\n")
+#        if results.size == 1
+#          # Print single result
+#          `echo #{results} >> #{merged_index_filename}`
+#        elsif true # <-- TODO Change this!
+#          # TODO Merge multiple results, then print
+#          `echo #{results} >> #{merged_index_filename}` # <-- TODO Change this!
+#        end
+#      end
+merged_index_filename = sorted_index_filename # TODO <-- remove this line later
+      
+#      File.delete(sorted_index_filename) if File.exist?(sorted_index_filename) # TODO <-- put this back!
     
       puts "- Merging all results..." if PROGRESS
       # Merge headers
@@ -180,11 +209,11 @@ class Print
         header += result.join(DELIM) + DELIM
       end
       header.strip!
-      f_merged = File.open(merged_file_name, 'w')
+      f_merged = File.open(merged_filename, 'w')
       f_merged.puts header
-    
+
       # Merge results
-      File.open(merged_index_file_name).each_line do |variant|
+      File.open(merged_index_filename).each_line do |variant|
         variant.strip!
         row = variant+DELIM
         source_results_filenames.each do |filename|
@@ -218,9 +247,9 @@ class Print
         row.strip!
         f_merged.puts row
       end
+      f_merged.close if f_merged
     end
-    f_merged.close
-    File.delete(merged_index_file_name)
+    File.delete(merged_index_filename) if File.exist?(merged_index_filename)
     return nil
   end
 end

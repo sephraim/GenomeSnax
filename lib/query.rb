@@ -81,7 +81,7 @@ class Query
   ##
   def self.position(position, source)
     ngs_ontology_no = VALID_SOURCES[source]
-    chr,pos = Genome.split_variant(position)
+    chr,pos = Genome.split_position(position)
     return nil if chr.nil?
 
     results = CLIENT.query("
@@ -126,7 +126,7 @@ class Query
         # Check all possible alt alleles
         alts2.split(',').each do |alt2|
           alt2.strip!
-          if ref1 == ref2 && alt1 == alt2
+          if (ref1 == ref2 && alt1 == alt2) || (ref1 == Genome.swap_strand(ref2) && alt1 == Genome.swap_strand(alt2))
             return [[row],chr,pos,ref1,alt1]
           end
         end
