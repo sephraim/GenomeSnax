@@ -136,7 +136,9 @@ class Print
   # @return [Nil]
   def self.merged_results(source_results_filenames, merged_filename)
     # Temporary index file used for merging results
-    merged_index_filename = File.join(TMP_DIR, merged_filename + ".index.tmp")
+#    merged_index_filename = File.join(TMP_DIR, merged_filename + ".index.tmp")
+# TODO patch
+merged_index_filename = File.join('/tmp', ".output.tmp")
 
     # Merge results
     if FORMAT == 'raw'
